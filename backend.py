@@ -1,8 +1,10 @@
-from flask import Flask, render_template_string, request, redirect, url_for
+from flask import Flask, render_template_string, request, redirect, url_for, flash
 import openpyxl
 from openpyxl import Workbook
+import re
 
 app = Flask(__name__)
+app.secret_key = 'your_secret_key'  # Needed for flashing error messages
 
 # HTML template for the form
 form_html = """
@@ -66,16 +68,27 @@ form_html = """
         input[type="submit"]:hover {
             background-color: #218838;
         }
+
+        .error {
+            color: red;
+            font-size: 14px;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="form-container">
         <h2>Student Information</h2>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}
+            <div class="error">{{ messages[0] }}</div>
+          {% endif %}
+        {% endwith %}
         <form action="/submit" method="POST">
             <label for="name">Full Name:</label>
             <input type="text" id="name" name="name" required>
 
-            <label for="email">Email:</label>
+            <label for="email">College Email:</label>
             <input type="email" id="email" name="email" required>
 
             <label for="age">Age:</label>
@@ -155,6 +168,10 @@ success_html = """
 </html>
 """
 
+# Function to validate if email is a college email
+def is_valid_college_email(email):
+    return re.match(r".+@coeptech\.ac\.in$", email)
+
 # Route to serve the form
 @app.route('/')
 def form():
@@ -169,6 +186,11 @@ def submit():
     age = request.form['age']
     gender = request.form['gender']
     course = request.form['course']
+    
+    # Check if the email is a valid college email
+    if not is_valid_college_email(email):
+        flash("Please enter your valid college email ending with '@coeptech.ac.in'")
+        return redirect(url_for('form'))
     
     # Save data to Excel
     save_to_excel([name, email, age, gender, course])
